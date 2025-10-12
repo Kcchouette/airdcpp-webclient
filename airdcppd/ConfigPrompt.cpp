@@ -29,6 +29,8 @@
 #include <web-server/WebUserManager.h>
 #include <web-server/WebUser.h>
 
+#include <termios.h>
+
 namespace airdcppd {
 
 using namespace dcpp;
