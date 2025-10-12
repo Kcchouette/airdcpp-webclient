@@ -7,7 +7,6 @@ cmake_minimum_required(VERSION 3.16)
 # ######### General setup ##########
 
 
-find_package (websocketpp REQUIRED)
 find_package (nlohmann_json 3.0.0 REQUIRED)
 
 
@@ -53,7 +52,6 @@ endif()
 
 target_link_libraries (${PROJECT_NAME} 
 	airdcpp 
-	websocketpp::websocketpp
 	nlohmann_json::nlohmann_json
 )
 set_target_properties(${PROJECT_NAME} PROPERTIES VERSION ${VERSION} OUTPUT_NAME "airdcpp-webapi")
