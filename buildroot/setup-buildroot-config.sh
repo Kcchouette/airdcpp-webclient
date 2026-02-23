@@ -53,16 +53,6 @@ else
   echo "package airdcpp is installed already"
 fi
 
-cat ${BR_PATH}package/Config.in | grep "package/websocketpp/Config.in" > /dev/null
-if [ $? -ne 0 ];
-then
-  echo "Installing package websocketpp"
-  ln -s ${AIR_BR_PATH}/package/websocketpp/ ${BR_PATH}/package/
-  echo 'source "package/websocketpp/Config.in"' >> "${BR_PATH}/package/Config.in"
-else
-  echo "package websocketpp is installed already"
-fi
-
 
 # Install build config
 if [ ! -f ${BR_PATH}/.config ]; then
