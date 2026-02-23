@@ -342,8 +342,11 @@ namespace webserver {
 
 		{
 			RLock l(QueueManager::getInstance()->getCS());
-			files = b->getQueueItems();
+			copy(b->getQueueItems().begin(), b->getQueueItems().end(), back_inserter(files));
+			copy(b->getFinishedFiles().begin(), b->getFinishedFiles().end(), back_inserter(files));
 		}
+
+		sort(files.begin(), files.end(), QueueItem::AlphaSortOrder());
 
 		int start = aRequest.getRangeParam(START_POS);
 		int count = aRequest.getRangeParam(MAX_COUNT);
@@ -699,7 +702,10 @@ namespace webserver {
 
 		if (subscriptionActive("queue_file_updated")) {
 			// Serialize updated properties only
-			send("queue_file_updated", Serializer::serializePartialItem(aQI, QueueFileUtils::propertyHandler, aUpdatedProperties));
+			// (but always include the bundle ID as well)
+			auto propertiesWithBundle = aUpdatedProperties;
+			propertiesWithBundle.insert(QueueFileUtils::PROP_BUNDLE);
+			send("queue_file_updated", Serializer::serializePartialItem(aQI, QueueFileUtils::propertyHandler, propertiesWithBundle));
 		}
 	}
 
