@@ -126,7 +126,10 @@ bool SSLSocket::waitWant(int ret, uint64_t millis) {
 	case SSL_ERROR_WANT_WRITE:
 		return wait(millis, true, false).second;
 	// Check if this is a fatal error...
-	default: checkSSL(ret);
+	default: 
+		checkSSL(ret);
+		dcdebug("SSL: Unexpected fallthrough, error code %d\n", err);
+		return false;
 	}
 	dcdebug("SSL: Unexpected fallthrough");
 	// There was no error?
