@@ -131,9 +131,6 @@ bool SSLSocket::waitWant(int ret, uint64_t millis) {
 		dcdebug("SSL: Unexpected fallthrough, error code %d\n", err);
 		return false;
 	}
-	dcdebug("SSL: Unexpected fallthrough");
-	// There was no error?
-	return true;
 }
 
 int SSLSocket::read(void* aBuffer, size_t aBufLen) {
