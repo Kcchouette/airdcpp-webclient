@@ -24,6 +24,7 @@
 #include <airdcpp/core/crypto/CryptoManager.h>
 #include <airdcpp/events/LogManager.h>
 #include <airdcpp/message/Message.h>
+#include <format>
 
 
 namespace dcpp {
@@ -117,13 +118,11 @@ void PrivateChat::checkCCPMHubBlocked() noexcept {
 		return;
 	}
 
-	auto msg = boost::str(boost::format(
-"%s\r\n\r\n\
-%s")
-
-% STRING_F(CCPM_BLOCKED_WARNING, hubName)
-% (getUser()->isSet(User::CCPM) ? STRING(OTHER_CCPM_SUPPORTED) : STRING(OTHER_MEANS_COMMUNICATION))
-);
+	auto msg = std::format(
+		"{}\r\n\r\n{}",
+		STRING_F(CCPM_BLOCKED_WARNING, hubName),
+		(getUser()->isSet(User::CCPM) ? STRING(OTHER_CCPM_SUPPORTED) : STRING(OTHER_MEANS_COMMUNICATION))
+	);
 
 	statusMessage(msg, LogMessage::SEV_WARNING, LogMessage::Type::SYSTEM);
 }

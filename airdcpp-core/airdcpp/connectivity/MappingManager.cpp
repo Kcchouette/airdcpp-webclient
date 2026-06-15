@@ -21,7 +21,7 @@
 
 #include <airdcpp/connection/ConnectionManager.h>
 #include <airdcpp/connectivity/ConnectivityManager.h>
-#include <airdcpp/core/header/format.h>
+#include <format>
 #include <airdcpp/events/LogManager.h>
 
 #include <airdcpp/connectivity/mappers/Mapper_MiniUPnPc.h>
