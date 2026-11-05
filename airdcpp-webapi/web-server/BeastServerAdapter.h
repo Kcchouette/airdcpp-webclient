@@ -564,6 +564,9 @@ namespace webserver {
 			}
 
 			void readLoop() {
+				// Bound inbound message size (HTTP body limit is separate; out-queue already capped).
+				// Keep in sync with HttpManager::MAX_HTTP_BODY_SIZE (16 MiB).
+				ws.read_message_max(16 * 1024 * 1024);
 				ws.async_read(buffer, beast::bind_front_handler(&WsSessionT::onRead, this->shared_from_this()));
 			}
 
