@@ -227,9 +227,31 @@ bool HashStore::loadTree(const void* src, size_t len, const TTHValue& aRoot, Tig
 	memcpy(&blockSize, p, sizeof(int64_t));
 	p += sizeof(int64_t);
 
+	// Corrupt DB must not drive calcBlocks (div-by-zero) or an oversized leaf read
+	if (blockSize <= 0 || fileSize < 0) {
+		if (aReportCorruption) {
+			log(STRING_F(TREE_LOAD_FAILED_DB, aRoot.toBase32() % STRING(INVALID_TREE) % "/verifydb"), LogMessage::SEV_ERROR);
+		}
+		return false;
+	}
+
 	size_t datalen = len - sizeof(uint8_t) - sizeof(int64_t) - sizeof(int64_t);
 	if (datalen > 0) {
-		dcassert(datalen % TTHValue::BYTES == 0);
+		if (datalen % TTHValue::BYTES != 0) {
+			if (aReportCorruption) {
+				log(STRING_F(TREE_LOAD_FAILED_DB, aRoot.toBase32() % STRING(INVALID_TREE) % "/verifydb"), LogMessage::SEV_ERROR);
+			}
+			return false;
+		}
+
+		auto expectedLeaves = TigerTree::calcBlocks(fileSize, blockSize);
+		if (datalen != expectedLeaves * TTHValue::BYTES) {
+			if (aReportCorruption) {
+				log(STRING_F(TREE_LOAD_FAILED_DB, aRoot.toBase32() % STRING(INVALID_TREE) % "/verifydb"), LogMessage::SEV_ERROR);
+			}
+			return false;
+		}
+
 		boost::scoped_array<uint8_t> buf(new uint8_t[datalen]);
 		memcpy(&buf[0], p, datalen);
 		aTree = TigerTree(fileSize, blockSize, &buf[0]);
