@@ -1292,6 +1292,11 @@ void AdcHub::password(const string& pwd) noexcept {
 	setPassword(pwd);
 	if(!salt.empty()) {
 		size_t saltBytes = salt.size() * 5 / 8;
+		if (saltBytes == 0) {
+			// 1-char base32 salt decodes to 0 bytes; fromBase32 would still write dst[0]
+			salt.clear();
+			return;
+		}
 		boost::scoped_array<uint8_t> buf(new uint8_t[saltBytes]);
 		Encoder::fromBase32(salt.c_str(), &buf[0], saltBytes);
 		TigerHash th;
