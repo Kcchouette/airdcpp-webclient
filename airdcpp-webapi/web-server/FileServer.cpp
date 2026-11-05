@@ -34,6 +34,7 @@
 #include <airdcpp/util/Util.h>
 
 #include <airdcpp/util/LinkUtil.h>
+#include <airdcpp/util/NetworkUtil.h>
 #include <airdcpp/connection/http/HttpDownload.h>
 #include <airdcpp/core/classes/ScopedFunctor.h>
 #include <airdcpp/util/ValueGenerator.h>
@@ -331,12 +332,30 @@ namespace webserver {
 			return http::status::bad_request;
 		}
 
+		// Early SSRF check (HttpConnection re-validates every redirect hop)
+		{
+			string urlProto, urlHost, urlPort, urlPath, urlQuery, urlFragment;
+			LinkUtil::decodeUrl(proxyUrl, urlProto, urlHost, urlPort, urlPath, urlQuery, urlFragment);
+			if (urlProto != "http" && urlProto != "https") {
+				output_ = "Unsupported proxy scheme";
+				return http::status::forbidden;
+			}
+			if (NetworkUtil::isBlockedProxyHost(urlHost)) {
+				output_ = "Proxy target not allowed";
+				return http::status::forbidden;
+			}
+		}
+
+		HttpOptions options;
+		options.setBlockPrivateTargets(true);
+
 		auto downloadId = proxyDownloadCounter++;
 		auto download = std::make_shared<HttpDownload>(
 			proxyUrl,
 			[this, downloadId, completionHandler = aDeferF()]() {
 				onProxyDownloadCompleted(downloadId, completionHandler);
-			}
+			},
+			options
 		);
 
 		{

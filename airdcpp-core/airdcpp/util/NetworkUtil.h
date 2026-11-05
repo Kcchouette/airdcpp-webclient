@@ -51,6 +51,15 @@ public:
 
 	static bool isPublicIp(const string& ip, bool v6) noexcept;
 
+	// True if the IP is in a range that must not be reachable via the HTTP proxy (SSRF):
+	// loopback, RFC1918, link-local (incl. 169.254.169.254), CGNAT, 0.0.0.0/8,
+	// IPv6 loopback/ULA/link-local and IPv4-mapped forms of the above.
+	static bool isBlockedProxyIp(const string& ip) noexcept;
+
+	// True if connecting to aHost (literal IP or hostname) would be blocked for the proxy.
+	// Hostnames are resolved; any blocked address rejects the host.
+	static bool isBlockedProxyHost(const string& aHost) noexcept;
+
 
 	// Get a list of network adapters for the wanted protocol
 	static AdapterInfoList getNetworkAdapters(bool v6);

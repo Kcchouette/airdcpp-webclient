@@ -23,6 +23,7 @@
 #include <airdcpp/connectivity/ConnectivityManager.h>
 #include <airdcpp/settings/SettingsManager.h>
 #include <airdcpp/util/Util.h>
+#include <airdcpp/util/text/Text.h>
 
 #ifdef _WIN32
 
@@ -36,12 +37,15 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <sys/socket.h>
+#include <netdb.h>
 
 #ifdef HAVE_IFADDRS_H
 #include <ifaddrs.h>
 #include <net/if.h>
 #endif
 
+#else
+#include <ws2tcpip.h>
 #endif
 
 
@@ -78,6 +82,100 @@ bool NetworkUtil::isPrivateIp(const string& ip, bool v6) noexcept {
 
 bool NetworkUtil::isPublicIp(const string& ip, bool v6) noexcept {
 	return !ip.empty() && !isLocalIp(ip, v6) && !isPrivateIp(ip, v6);
+}
+
+static bool isBlockedV4(const string& ip) noexcept {
+	struct in_addr addr {};
+	if (inet_pton(AF_INET, ip.c_str(), &addr) != 1) {
+		return false;
+	}
+	auto h = ntohl(addr.s_addr);
+	return ((h & 0xff000000) == 0x7f000000) || // 127.0.0.0/8
+		((h & 0xff000000) == 0x0a000000) || // 10.0.0.0/8
+		((h & 0xfff00000) == 0xac100000) || // 172.16.0.0/12
+		((h & 0xffff0000) == 0xc0a80000) || // 192.168.0.0/16
+		((h & 0xffff0000) == 0xa9fe0000) || // 169.254.0.0/16 (link-local / cloud metadata)
+		((h & 0xff000000) == 0x00000000) || // 0.0.0.0/8
+		((h & 0xffc00000) == 0x64400000);   // 100.64.0.0/10 CGNAT
+}
+
+static bool isBlockedV6(const string& ip) noexcept {
+	// Strip IPv4-mapped prefix for uniform checks
+	string normalized = ip;
+	if (normalized.starts_with("::ffff:")) {
+		normalized = normalized.substr(7);
+		if (normalized.find('.') != string::npos) {
+			return isBlockedV4(normalized);
+		}
+	}
+
+	auto lower = Text::toLower(normalized);
+	return lower == "::1" || lower == "::" ||
+		lower.starts_with("fe80") ||
+		lower.starts_with("fc") || lower.starts_with("fd") ||
+		isBlockedV4(lower);
+}
+
+bool NetworkUtil::isBlockedProxyIp(const string& ip) noexcept {
+	if (ip.empty()) {
+		return true;
+	}
+
+	// Prefer inet_pton to detect family
+	struct in_addr v4 {};
+	if (inet_pton(AF_INET, ip.c_str(), &v4) == 1) {
+		return isBlockedV4(ip);
+	}
+
+	struct in6_addr v6 {};
+	if (inet_pton(AF_INET6, ip.c_str(), &v6) == 1) {
+		return isBlockedV6(ip);
+	}
+
+	// Not a literal IP (should not be passed here)
+	return false;
+}
+
+bool NetworkUtil::isBlockedProxyHost(const string& aHost) noexcept {
+	if (aHost.empty()) {
+		return true;
+	}
+
+	// Literal IP?
+	if (isBlockedProxyIp(aHost)) {
+		return true;
+	}
+
+	// Reject obvious non-literals that still parse poorly; resolve hostnames
+	addrinfo hints {};
+	hints.ai_socktype = SOCK_STREAM;
+	hints.ai_family = AF_UNSPEC;
+
+	addrinfo* result = nullptr;
+	if (getaddrinfo(aHost.c_str(), nullptr, &hints, &result) != 0 || !result) {
+		// Unresolvable hosts are rejected for the proxy path
+		return true;
+	}
+
+	bool blocked = false;
+	for (auto* ai = result; ai; ai = ai->ai_next) {
+		char buf[INET6_ADDRSTRLEN] = {};
+		if (ai->ai_family == AF_INET) {
+			inet_ntop(AF_INET, &reinterpret_cast<sockaddr_in*>(ai->ai_addr)->sin_addr, buf, sizeof(buf));
+		} else if (ai->ai_family == AF_INET6) {
+			inet_ntop(AF_INET6, &reinterpret_cast<sockaddr_in6*>(ai->ai_addr)->sin6_addr, buf, sizeof(buf));
+		} else {
+			continue;
+		}
+
+		if (isBlockedProxyIp(buf)) {
+			blocked = true;
+			break;
+		}
+	}
+
+	freeaddrinfo(result);
+	return blocked;
 }
 
 AdapterInfoList NetworkUtil::getCoreBindAdapters(bool v6) {

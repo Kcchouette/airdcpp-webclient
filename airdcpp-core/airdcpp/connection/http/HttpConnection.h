@@ -34,6 +34,8 @@ class HttpOptions {
 public:
 	IGETSET(bool, isUnique, IsUnique, false);
 	IGETSET(bool, v4Only, V4Only, false);
+	// Reject loopback/private/link-local targets (and re-check after redirects). Used by /proxy.
+	IGETSET(bool, blockPrivateTargets, BlockPrivateTargets, false);
 	GETSET(StringPairList, headers, Headers);
 };
 

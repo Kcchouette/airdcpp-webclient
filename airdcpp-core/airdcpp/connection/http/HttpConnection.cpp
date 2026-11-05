@@ -21,6 +21,7 @@
 
 #include <airdcpp/connection/socket/BufferedSocket.h>
 #include <airdcpp/util/LinkUtil.h>
+#include <airdcpp/util/NetworkUtil.h>
 #include <airdcpp/core/header/format.h>
 #include <airdcpp/settings/SettingsManager.h>
 #include <airdcpp/util/SystemUtil.h>
@@ -118,6 +119,22 @@ void HttpConnection::prepareRequest(RequestType type) {
 	if (port.empty())
 		port = "80";
 
+	// Scheme + destination policy for /proxy (also runs on every redirect hop)
+	if (options.getBlockPrivateTargets()) {
+		if (proto != "http" && proto != "https") {
+			connState = CONN_FAILED;
+			fire(HttpConnectionListener::Failed(), this, "Unsupported scheme (" + currentUrl + ")");
+			if (isUnique) { delete this; }
+			return;
+		}
+		if (NetworkUtil::isBlockedProxyHost(server)) {
+			connState = CONN_FAILED;
+			fire(HttpConnectionListener::Failed(), this, "Proxy target not allowed (" + currentUrl + ")");
+			if (isUnique) { delete this; }
+			return;
+		}
+	}
+
 	if (!socket)
 		socket = BufferedSocket::getSocket(0x0a, options.getV4Only());
 
@@ -126,9 +143,9 @@ void HttpConnection::prepareRequest(RequestType type) {
 	try {
 		SocketConnectOptions socketOptions(port, (proto == "https"));
 		socket->connect(
-			AddressInfo(server, AddressInfo::TYPE_URL), 
+			AddressInfo(server, AddressInfo::TYPE_URL),
 			socketOptions,
-			true, 
+			true,
 			false
 		);
 	}
