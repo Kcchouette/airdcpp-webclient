@@ -369,6 +369,10 @@ void NmdcHub::onLine(const string& aLine) noexcept {
 		}
 
 		int a;
+		// Size token is 4 chars ("F?.." / "T?.." style); require room before indexing
+		if (i + 3 >= param.size()) {
+			return;
+		}
 		if(param[i] == 'F') {
 			a = Search::SIZE_DONTCARE;
 		} else if(param[i+2] == 'F') {
@@ -549,6 +553,10 @@ void NmdcHub::onLine(const string& aLine) noexcept {
 		} else {
 			senderNick = param.substr(i+1);
 			senderPort = param.substr(j+1, i-j-1);
+		}
+
+		if (senderPort.empty()) {
+			return;
 		}
 
 		bool connectSecure = false;
